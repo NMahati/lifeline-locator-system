@@ -1,7 +1,7 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { BloodTypes, useAuth, UserProfile } from './AuthContext';
+import { bloodRequestService } from '../services/api';
 
 export interface BloodRequest {
   id: string;
@@ -39,12 +39,14 @@ interface BloodRequestContextType {
   updateRequest: (id: string, data: Partial<BloodRequest>) => void;
   deleteRequest: (id: string) => void;
   respondToRequest: (requestId: string) => void;
-  getMatchingDonors: (bloodGroup: keyof BloodTypes) => UserProfile[];
+  getMatchingDonors: (bloodGroup: keyof BloodTypes) => Promise<UserProfile[]>;
+  loading: boolean;
+  error: string | null;
 }
 
 const BloodRequestContext = createContext<BloodRequestContextType | undefined>(undefined);
 
-// Mock data
+// Mock data just for fallback
 const mockRequests: BloodRequest[] = [
   {
     id: '1',
@@ -112,39 +114,60 @@ const mockRequests: BloodRequest[] = [
   }
 ];
 
-// Mock donors for compatibility checking
-const mockDonors: UserProfile[] = [
-  {
-    id: '5',
-    name: 'Alice Johnson',
-    email: 'alice@example.com',
-    phone: '+1122334455',
-    userType: 'donor',
-    bloodGroup: 'O-',
-    location: {
-      address: '222 Universal St, Chicago',
-      latitude: 41.8750,
-      longitude: -87.6290
-    }
-  },
-  {
-    id: '6',
-    name: 'Bob Williams',
-    email: 'bob@example.com',
-    phone: '+1233445566',
-    userType: 'donor',
-    bloodGroup: 'A+',
-    location: {
-      address: '333 Downtown Ave, Boston',
-      latitude: 42.3590,
-      longitude: -71.0580
-    }
-  }
-];
+// Converting MongoDB data format to our app format
+const formatRequestFromApi = (apiRequest: any): BloodRequest => {
+  return {
+    id: apiRequest._id,
+    requesterInfo: apiRequest.requesterInfo,
+    bloodGroup: apiRequest.bloodGroup as keyof BloodTypes,
+    quantity: apiRequest.quantity,
+    urgency: apiRequest.urgency as 'normal' | 'urgent' | 'critical',
+    location: apiRequest.location,
+    requestDate: new Date(apiRequest.requestDate),
+    contactPhone: apiRequest.contactPhone,
+    contactEmail: apiRequest.contactEmail,
+    additionalNotes: apiRequest.additionalNotes,
+    status: apiRequest.status as 'open' | 'in-progress' | 'fulfilled' | 'canceled',
+    responses: apiRequest.responses?.map((response: any) => ({
+      donorId: response.donorId,
+      donorName: response.donorName,
+      status: response.status as 'offered' | 'accepted' | 'rejected' | 'completed',
+      responseDate: new Date(response.responseDate)
+    }))
+  };
+};
 
 export const BloodRequestProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [requests, setRequests] = useState<BloodRequest[]>(mockRequests);
+  const [requests, setRequests] = useState<BloodRequest[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+
+  // Fetch all blood requests
+  useEffect(() => {
+    const fetchRequests = async () => {
+      setLoading(true);
+      try {
+        const response = await bloodRequestService.getAllRequests();
+        if (response.success) {
+          const formattedRequests = response.requests.map(formatRequestFromApi);
+          setRequests(formattedRequests);
+        } else {
+          setError('Failed to fetch requests');
+          // Fallback to mock data if API fails
+          setRequests(mockRequests);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Error fetching blood requests');
+        // Fallback to mock data if API fails
+        setRequests(mockRequests);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRequests();
+  }, []);
 
   // Filter requests for current user
   const userRequests = requests.filter(req => 
@@ -156,7 +179,7 @@ export const BloodRequestProvider: React.FC<{ children: ReactNode }> = ({ childr
     req.urgency === 'urgent' || req.urgency === 'critical'
   );
 
-  const createRequest = (requestData: Omit<BloodRequest, 'id' | 'requesterInfo' | 'requestDate' | 'status' | 'responses'>) => {
+  const createRequest = async (requestData: Omit<BloodRequest, 'id' | 'requesterInfo' | 'requestDate' | 'status' | 'responses'>) => {
     if (!user) {
       toast({
         title: "Error",
@@ -166,60 +189,111 @@ export const BloodRequestProvider: React.FC<{ children: ReactNode }> = ({ childr
       return;
     }
 
-    const newRequest: BloodRequest = {
-      id: `${Date.now()}`,
-      requesterInfo: {
-        id: user.id,
-        name: user.name,
-        type: user.userType as 'recipient' | 'hospital'
-      },
-      bloodGroup: requestData.bloodGroup,
-      quantity: requestData.quantity,
-      urgency: requestData.urgency,
-      location: requestData.location,
-      requestDate: new Date(),
-      contactPhone: requestData.contactPhone,
-      contactEmail: requestData.contactEmail,
-      additionalNotes: requestData.additionalNotes,
-      status: 'open',
-      responses: []
-    };
+    setLoading(true);
+    try {
+      const newRequestData = {
+        requesterInfo: {
+          id: user.id,
+          name: user.name,
+          type: user.userType as 'recipient' | 'hospital'
+        },
+        bloodGroup: requestData.bloodGroup,
+        quantity: requestData.quantity,
+        urgency: requestData.urgency,
+        location: requestData.location,
+        contactPhone: requestData.contactPhone,
+        contactEmail: requestData.contactEmail,
+        additionalNotes: requestData.additionalNotes
+      };
 
-    setRequests(prev => [newRequest, ...prev]);
-    
-    toast({
-      title: "Request created",
-      description: "Your blood request has been posted successfully."
-    });
-
-    // Find matching donors for notification (in a real app)
-    const matchingDonors = getMatchingDonors(requestData.bloodGroup);
-    console.log(`Notifying ${matchingDonors.length} compatible donors`);
+      const response = await bloodRequestService.createRequest(newRequestData);
+      
+      if (response.success) {
+        const formattedRequest = formatRequestFromApi(response.request);
+        setRequests(prev => [formattedRequest, ...prev]);
+        
+        toast({
+          title: "Request created",
+          description: "Your blood request has been posted successfully."
+        });
+        
+        // Find matching donors for notification
+        getMatchingDonors(requestData.bloodGroup)
+          .then(donors => console.log(`Notifying ${donors.length} compatible donors`));
+      } else {
+        throw new Error(response.error || 'Failed to create request');
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to create blood request",
+        variant: "destructive"
+      });
+      setError(err.message || 'Error creating request');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateRequest = (id: string, data: Partial<BloodRequest>) => {
-    setRequests(prev => 
-      prev.map(request => 
-        request.id === id ? { ...request, ...data } : request
-      )
-    );
-    
-    toast({
-      title: "Request updated",
-      description: "The blood request has been updated."
-    });
+  const updateRequest = async (id: string, data: Partial<BloodRequest>) => {
+    setLoading(true);
+    try {
+      const response = await bloodRequestService.updateRequest(id, data);
+      
+      if (response.success) {
+        setRequests(prev => 
+          prev.map(request => 
+            request.id === id ? { ...request, ...data } : request
+          )
+        );
+        
+        toast({
+          title: "Request updated",
+          description: "The blood request has been updated."
+        });
+      } else {
+        throw new Error(response.error || 'Failed to update request');
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update blood request",
+        variant: "destructive"
+      });
+      setError(err.message || 'Error updating request');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteRequest = (id: string) => {
-    setRequests(prev => prev.filter(request => request.id !== id));
-    
-    toast({
-      title: "Request deleted",
-      description: "The blood request has been removed."
-    });
+  const deleteRequest = async (id: string) => {
+    setLoading(true);
+    try {
+      const response = await bloodRequestService.deleteRequest(id);
+      
+      if (response.success) {
+        setRequests(prev => prev.filter(request => request.id !== id));
+        
+        toast({
+          title: "Request deleted",
+          description: "The blood request has been removed."
+        });
+      } else {
+        throw new Error(response.error || 'Failed to delete request');
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete blood request",
+        variant: "destructive"
+      });
+      setError(err.message || 'Error deleting request');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const respondToRequest = (requestId: string) => {
+  const respondToRequest = async (requestId: string) => {
     if (!user || user.userType !== 'donor') {
       toast({
         title: "Action not allowed",
@@ -229,64 +303,65 @@ export const BloodRequestProvider: React.FC<{ children: ReactNode }> = ({ childr
       return;
     }
 
-    setRequests(prev => 
-      prev.map(request => {
-        if (request.id === requestId) {
-          // Check if donor already responded
-          const alreadyResponded = request.responses?.some(r => r.donorId === user.id);
-          
-          if (alreadyResponded) {
-            toast({
-              title: "Already responded",
-              description: "You have already responded to this request.",
-              variant: "destructive"
-            });
-            return request;
-          }
-          
-          // Add donor response with the correct type for status
-          const updatedResponses = [...(request.responses || []), {
-            donorId: user.id,
-            donorName: user.name,
-            status: 'offered' as 'offered' | 'accepted' | 'rejected' | 'completed',
-            responseDate: new Date()
-          }];
-          
-          toast({
-            title: "Response sent",
-            description: "Your offer to donate has been sent. The requester will contact you soon."
-          });
-          
-          return {
-            ...request,
-            responses: updatedResponses,
-            status: 'in-progress' as const
-          };
-        }
-        return request;
-      })
-    );
+    setLoading(true);
+    try {
+      const response = await bloodRequestService.respondToRequest(requestId, {
+        donorId: user.id,
+        donorName: user.name
+      });
+      
+      if (response.success) {
+        const updatedRequest = formatRequestFromApi(response.request);
+        
+        setRequests(prev => 
+          prev.map(request => 
+            request.id === requestId ? updatedRequest : request
+          )
+        );
+        
+        toast({
+          title: "Response sent",
+          description: "Your offer to donate has been sent. The requester will contact you soon."
+        });
+      } else {
+        throw new Error(response.error || 'Failed to respond to request');
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to respond to blood request",
+        variant: "destructive"
+      });
+      setError(err.message || 'Error responding to request');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Helper function to determine compatible blood groups
-  const getMatchingDonors = (bloodGroup: keyof BloodTypes): UserProfile[] => {
-    // Blood compatibility chart (simplified)
-    const compatibility: Record<keyof BloodTypes, Array<keyof BloodTypes>> = {
-      'A+': ['A+', 'A-', 'O+', 'O-'],
-      'A-': ['A-', 'O-'],
-      'B+': ['B+', 'B-', 'O+', 'O-'],
-      'B-': ['B-', 'O-'],
-      'AB+': ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
-      'AB-': ['A-', 'B-', 'AB-', 'O-'],
-      'O+': ['O+', 'O-'],
-      'O-': ['O-']
-    };
-
-    return mockDonors.filter(donor => 
-      donor.userType === 'donor' && 
-      donor.bloodGroup && 
-      compatibility[bloodGroup].includes(donor.bloodGroup)
-    );
+  const getMatchingDonors = async (bloodGroup: keyof BloodTypes): Promise<UserProfile[]> => {
+    try {
+      const response = await bloodRequestService.getCompatibleDonors(bloodGroup);
+      
+      if (response.success) {
+        return response.donors.map((donor: any) => ({
+          id: donor._id,
+          name: donor.name,
+          email: donor.email,
+          phone: donor.phone,
+          userType: donor.userType,
+          bloodGroup: donor.bloodGroup,
+          location: donor.location,
+          lastDonation: donor.lastDonation ? new Date(donor.lastDonation) : null,
+          eligibleToDonateSince: donor.eligibleToDonateSince ? new Date(donor.eligibleToDonateSince) : null
+        }));
+      } else {
+        throw new Error(response.error || 'Failed to get compatible donors');
+      }
+    } catch (err) {
+      console.error('Error finding compatible donors:', err);
+      return [];
+    }
   };
 
   return (
@@ -298,7 +373,9 @@ export const BloodRequestProvider: React.FC<{ children: ReactNode }> = ({ childr
       updateRequest, 
       deleteRequest,
       respondToRequest,
-      getMatchingDonors
+      getMatchingDonors,
+      loading,
+      error
     }}>
       {children}
     </BloodRequestContext.Provider>
