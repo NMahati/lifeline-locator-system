@@ -1,5 +1,4 @@
-
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { BloodTypes } from './AuthContext';
 
@@ -33,69 +32,33 @@ interface BloodBankContextType {
 
 const BloodBankContext = createContext<BloodBankContextType | undefined>(undefined);
 
-// Mock data
-const mockBloodBanks: BloodBank[] = [
-  {
-    id: '1',
-    name: 'City Central Blood Bank',
-    address: '123 Main Street, Downtown',
-    coordinates: {
-      latitude: 40.7128,
-      longitude: -74.0060
-    },
-    contactPhone: '+1234567890',
-    contactEmail: 'info@citybloodbank.org',
-    website: 'https://www.citybloodbank.org',
-    hoursOfOperation: 'Mon-Fri: 8am-6pm, Sat: 9am-3pm, Sun: Closed',
-    acceptsWalkIns: true,
-    services: ['Blood Donation', 'Plasma Donation', 'Blood Tests'],
-    inventory: {
-      'A+': { quantity: 15, lastUpdated: new Date('2024-04-01') },
-      'A-': { quantity: 5, lastUpdated: new Date('2024-04-01') },
-      'B+': { quantity: 10, lastUpdated: new Date('2024-04-01') },
-      'B-': { quantity: 3, lastUpdated: new Date('2024-04-01') },
-      'AB+': { quantity: 7, lastUpdated: new Date('2024-04-01') },
-      'AB-': { quantity: 2, lastUpdated: new Date('2024-04-01') },
-      'O+': { quantity: 20, lastUpdated: new Date('2024-04-01') },
-      'O-': { quantity: 8, lastUpdated: new Date('2024-04-01') }
-    }
-  },
-  {
-    id: '2',
-    name: 'Red Cross Donation Center',
-    address: '456 Medical Drive, Midtown',
-    coordinates: {
-      latitude: 40.7580,
-      longitude: -73.9855
-    },
-    contactPhone: '+1987654321',
-    contactEmail: 'donations@redcross.org',
-    website: 'https://www.redcross.org/donate/blood',
-    hoursOfOperation: 'Mon-Sun: 9am-7pm',
-    acceptsWalkIns: true,
-    services: ['Blood Donation', 'Platelet Donation', 'Blood Drive Organization']
-  },
-  {
-    id: '3',
-    name: 'Community Hospital Blood Center',
-    address: '789 Hospital Lane, Uptown',
-    coordinates: {
-      latitude: 40.7831,
-      longitude: -73.9712
-    },
-    contactPhone: '+1567891234',
-    contactEmail: 'bloodcenter@communityhospital.org',
-    hoursOfOperation: 'Mon-Fri: 7am-8pm, Sat-Sun: 8am-4pm',
-    acceptsWalkIns: false,
-    services: ['Blood Donation', 'Medical Research', 'Plasma Donation']
-  }
-];
-
 export const BloodBankProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [bloodBanks] = useState<BloodBank[]>(mockBloodBanks);
+  const [bloodBanks, setBloodBanks] = useState<BloodBank[]>([]);
   const [nearbyBloodBanks, setNearbyBloodBanks] = useState<BloodBank[]>([]);
 
-  // Calculate distance between two coordinates using Haversine formula (km)
+  // Fetch blood banks from the backend
+  useEffect(() => {
+    const fetchBloodBanks = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/blood-banks');
+        if (!response.ok) {
+          throw new Error('Failed to fetch blood banks');
+        }
+        const data = await response.json();
+        setBloodBanks(data);
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch blood banks. Please try again later.',
+          variant: 'destructive',
+        });
+        console.error(error);
+      }
+    };
+
+    fetchBloodBanks();
+  }, []);
+
   const calculateDistance = (
     lat1: number, lon1: number, 
     lat2: number, lon2: number
@@ -126,7 +89,6 @@ export const BloodBankProvider: React.FC<{ children: ReactNode }> = ({ children 
       return { ...bank, distance };
     });
     
-    // Filter by distance and sort by closest
     const nearby = banksWithDistance
       .filter(bank => bank.distance !== undefined && bank.distance <= maxDistance)
       .sort((a, b) => {
