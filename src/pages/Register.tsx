@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -34,6 +33,8 @@ const Register = () => {
         userType,
         bloodGroup: userType === 'donor' ? bloodGroup : undefined,
       };
+
+      console.log(userData);
       
       await register(userData);
       navigate('/');

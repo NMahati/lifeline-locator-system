@@ -6,9 +6,11 @@ const User = require('../models/User');
 // Register new user
 router.post('/register', async (req, res) => {
   try {
+    console.log(req)
     // In a real app, you would hash passwords
     const user = new User(req.body);
-    await user.save();
+    let res=await user.save();
+    console.log(res)
     res.status(201).json({ success: true, user });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });

@@ -1,6 +1,6 @@
-
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { toast } from '@/components/ui/use-toast';
+import axios from 'axios';
 
 export type UserType = 'donor' | 'recipient' | 'hospital' | null;
 
@@ -92,6 +92,8 @@ const mockUsers: UserProfile[] = [
   }
 ];
 
+const API_BASE_URL = 'http://localhost:5000/api'; // Replace with your backend API URL
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [userType, setUserType] = useState<UserType>(null);
@@ -108,57 +110,51 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const login = (email: string, password: string) => {
-    // In a real app, this would be an API call
-    // This is just for demonstration
-    const foundUser = mockUsers.find(u => u.email === email);
-    
-    if (foundUser) {
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, { email, password });
+      const foundUser = response.data;
+  
       setUser(foundUser);
       setUserType(foundUser.userType);
       setIsAuthenticated(true);
       localStorage.setItem('user', JSON.stringify(foundUser));
+  
       toast({
         title: "Logged in successfully",
-        description: `Welcome back, ${foundUser.name}!`
+        description: `Welcome back, ${foundUser.name}!`,
       });
-    } else {
+    } catch (error) {
       toast({
         title: "Login failed",
-        description: "Invalid email or password.",
-        variant: "destructive"
+        description: error.response?.data?.message || "Invalid email or password.",
+        variant: "destructive",
       });
     }
   };
 
-  const register = (userData: Partial<UserProfile> & {password: string}) => {
-    // In a real app, this would be an API call
-    const newUser: UserProfile = {
-      id: `${mockUsers.length + 1}`,
-      name: userData.name || '',
-      email: userData.email || '',
-      phone: userData.phone || '',
-      userType: userData.userType || null,
-      bloodGroup: userData.bloodGroup,
-      location: userData.location,
-      lastDonation: null,
-      eligibleToDonateSince: new Date(),
-      donationHistory: []
-    };
-    
-    // Save to our mock database
-    mockUsers.push(newUser);
-    
-    // Log the user in
-    setUser(newUser);
-    setUserType(newUser.userType);
-    setIsAuthenticated(true);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    
-    toast({
-      title: "Registration successful",
-      description: `Welcome to Lifeline, ${newUser.name}!`
-    });
+  const register = async (userData: Partial<UserProfile> & { password: string }) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
+      const newUser = response.data;
+  
+      // Log the user in
+      setUser(newUser);
+      setUserType(newUser.userType);
+      setIsAuthenticated(true);
+      localStorage.setItem('user', JSON.stringify(newUser));
+  
+      toast({
+        title: "Registration successful",
+        description: `Welcome to Lifeline, ${newUser.name}!`,
+      });
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description: error.response?.data?.message || "An error occurred during registration.",
+        variant: "destructive",
+      });
+    }
   };
 
   const logout = () => {
