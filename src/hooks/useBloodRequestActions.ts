@@ -26,6 +26,7 @@ export const useBloodRequestActions = (
 
     setLoading(true);
     try {
+      // Create the request data with proper structure
       const newRequestData = {
         requesterInfo: {
           id: user.id,
@@ -41,6 +42,8 @@ export const useBloodRequestActions = (
         additionalNotes: requestData.additionalNotes
       };
 
+      console.log("Sending request data to API:", newRequestData);
+      
       const response = await bloodRequestService.createRequest(newRequestData);
       
       if (response.success) {

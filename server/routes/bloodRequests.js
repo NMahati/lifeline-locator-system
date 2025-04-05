@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const BloodRequest = require('../models/BloodRequest');
@@ -14,13 +13,32 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create new blood request
+// Create new blood request - Fix to ensure data is stored
 router.post('/', async (req, res) => {
   try {
-    const request = new BloodRequest(req.body);
-    await request.save();
-    res.status(201).json({ success: true, request });
+    console.log("Received request data:", req.body);
+    
+    // Create new blood request instance with the request body
+    const request = new BloodRequest({
+      requesterInfo: req.body.requesterInfo,
+      bloodGroup: req.body.bloodGroup,
+      quantity: req.body.quantity,
+      urgency: req.body.urgency,
+      location: req.body.location,
+      contactPhone: req.body.contactPhone,
+      contactEmail: req.body.contactEmail,
+      additionalNotes: req.body.additionalNotes,
+      status: 'open',
+      requestDate: new Date()
+    });
+    
+    // Save the request to the database
+    const savedRequest = await request.save();
+    console.log("Saved request to database:", savedRequest);
+    
+    res.status(201).json({ success: true, request: savedRequest });
   } catch (error) {
+    console.error("Error creating blood request:", error);
     res.status(400).json({ success: false, error: error.message });
   }
 });

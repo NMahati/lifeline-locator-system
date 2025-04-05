@@ -1,16 +1,45 @@
-
 import axios from 'axios';
 
 // Base URL for the API
 const API_URL = 'http://localhost:5000/api';
 
-// Create axios instance
+// Create axios instance with proper CORS headers
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Add request interceptor for debugging
+api.interceptors.request.use(
+  config => {
+    console.log('API Request:', {
+      url: config.url,
+      method: config.method,
+      data: config.data
+    });
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for debugging
+api.interceptors.response.use(
+  response => {
+    console.log('API Response:', {
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
+  error => {
+    console.error('API Error:', error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
 
 // Auth services
 export const authService = {
@@ -32,15 +61,26 @@ export const authService = {
   }
 };
 
-// Blood request services
+// Blood request services with improved error handling
 export const bloodRequestService = {
   getAllRequests: async () => {
-    const response = await api.get('/blood-requests');
-    return response.data;
+    try {
+      const response = await api.get('/blood-requests');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching blood requests:', error);
+      throw error;
+    }
   },
   createRequest: async (requestData: any) => {
-    const response = await api.post('/blood-requests', requestData);
-    return response.data;
+    try {
+      console.log('Creating new blood request:', requestData);
+      const response = await api.post('/blood-requests', requestData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating blood request:', error);
+      throw error;
+    }
   },
   getRequestById: async (requestId: string) => {
     const response = await api.get(`/blood-requests/${requestId}`);
