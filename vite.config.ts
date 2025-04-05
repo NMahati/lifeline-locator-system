@@ -14,7 +14,9 @@ export default defineConfig(async ({ mode }) => {
   return {
     server: {
       host: "::",
-      port: 8080,
+      proxy: {
+        "/api": "http://localhost:5000", // 👈 proxy /api requests to backend
+      },
     },
     plugins,
     resolve: {

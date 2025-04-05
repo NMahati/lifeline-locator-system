@@ -35,7 +35,7 @@ interface BloodRequestContextType {
   requests: BloodRequest[];
   userRequests: BloodRequest[];
   urgentRequests: BloodRequest[];
-  createRequest: (requestData: Omit<BloodRequest, 'id' | 'requesterInfo' | 'requestDate' | 'status' | 'responses'>) => void;
+  createRequest: (requestData: Omit<BloodRequest, 'id' | 'requestDate' | 'status' | 'responses'>)  => void;
   updateRequest: (id: string, data: Partial<BloodRequest>) => void;
   deleteRequest: (id: string) => void;
   respondToRequest: (requestId: string) => void;
@@ -179,7 +179,7 @@ export const BloodRequestProvider: React.FC<{ children: ReactNode }> = ({ childr
     req.urgency === 'urgent' || req.urgency === 'critical'
   );
 
-  const createRequest = async (requestData: Omit<BloodRequest, 'id' | 'requesterInfo' | 'requestDate' | 'status' | 'responses'>) => {
+  const createRequest = async (requestData: Omit<BloodRequest, 'id' |'requestDate' | 'status' | 'responses'>) => {
     if (!user) {
       toast({
         title: "Error",

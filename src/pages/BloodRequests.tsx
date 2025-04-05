@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -18,14 +17,13 @@ import { Search, Plus, CircleX } from 'lucide-react';
 const BloodRequests = () => {
   const { requests, userRequests, createRequest, respondToRequest } = useBloodRequests();
   const { user, userType, isAuthenticated } = useAuth();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBloodGroup, setFilterBloodGroup] = useState<string>('all');
   const [filterUrgency, setFilterUrgency] = useState<string>('all');
-  
-  // New request form state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newRequest, setNewRequest] = useState({
+
+  const initialRequest = {
     bloodGroup: 'A+' as keyof BloodTypes,
     quantity: 1,
     urgency: 'normal' as 'normal' | 'urgent' | 'critical',
@@ -37,52 +35,42 @@ const BloodRequests = () => {
       latitude: user?.location?.latitude || 0,
       longitude: user?.location?.longitude || 0
     }
-  });
-  
-  // Filter requests
+  };
+
+  const [newRequest, setNewRequest] = useState(initialRequest);
+
   const filteredRequests = requests.filter(request => {
-    // Search by location, name, or notes
-    const searchMatch = 
-      request.location.address.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const searchMatch =
+      request.location.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.requesterInfo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (request.additionalNotes?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
-    
-    // Filter by blood group
+
     const bloodGroupMatch = filterBloodGroup === 'all' || request.bloodGroup === filterBloodGroup;
-    
-    // Filter by urgency
     const urgencyMatch = filterUrgency === 'all' || request.urgency === filterUrgency;
-    
+
     return searchMatch && bloodGroupMatch && urgencyMatch;
   });
-  
-  // Handle creating a new request
+
   const handleCreateRequest = () => {
-    createRequest(newRequest);
-    setIsDialogOpen(false);
-    // Reset form
-    setNewRequest({
-      bloodGroup: 'A+',
-      quantity: 1,
-      urgency: 'normal',
-      contactPhone: user?.phone || '',
-      contactEmail: user?.email || '',
-      additionalNotes: '',
-      location: {
-        address: user?.location?.address || '',
-        latitude: user?.location?.latitude || 0,
-        longitude: user?.location?.longitude || 0
+    if (!user) return;
+    createRequest({
+      ...newRequest,
+      requesterInfo: {
+        id: donor.id || donor._id,
+        name: user.name,
+        type: userType
       }
     });
+    setIsDialogOpen(false);
+    setNewRequest(initialRequest);
   };
-  
+
   const canCreateRequest = userType === 'recipient' || userType === 'hospital';
-  
+
   return (
     <Layout>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Blood Requests</h1>
-        
         {isAuthenticated && canCreateRequest && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -98,7 +86,7 @@ const BloodRequests = () => {
                   Enter the details for your blood request.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="blood-group">Blood Group</Label>
@@ -107,7 +95,7 @@ const BloodRequests = () => {
                     onChange={(group) => setNewRequest({...newRequest, bloodGroup: group})}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="quantity">Units Required</Label>
@@ -140,7 +128,7 @@ const BloodRequests = () => {
                     </Select>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="address">Location/Address</Label>
                   <Input 
@@ -153,7 +141,7 @@ const BloodRequests = () => {
                     placeholder="Hospital/Clinic Address"
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="phone">Contact Phone</Label>
@@ -174,7 +162,7 @@ const BloodRequests = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="notes">Additional Notes</Label>
                   <Textarea 
@@ -186,7 +174,7 @@ const BloodRequests = () => {
                   />
                 </div>
               </div>
-              
+
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                 <Button 
@@ -200,7 +188,7 @@ const BloodRequests = () => {
           </Dialog>
         )}
       </div>
-      
+
       <div className="mb-6 space-y-4">
         <div className="flex items-center space-x-2">
           <div className="relative flex-1">
@@ -223,7 +211,7 @@ const BloodRequests = () => {
             )}
           </div>
         </div>
-        
+
         <div className="flex flex-wrap gap-2">
           <div className="w-40">
             <Select 
@@ -246,7 +234,7 @@ const BloodRequests = () => {
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="w-40">
             <Select 
               value={filterUrgency}
@@ -263,7 +251,7 @@ const BloodRequests = () => {
               </SelectContent>
             </Select>
           </div>
-          
+
           {(searchTerm || filterBloodGroup !== 'all' || filterUrgency !== 'all') && (
             <Button 
               variant="outline" 
@@ -280,7 +268,7 @@ const BloodRequests = () => {
           )}
         </div>
       </div>
-      
+
       <Tabs defaultValue="all">
         <TabsList>
           <TabsTrigger value="all">All Requests</TabsTrigger>
@@ -288,7 +276,7 @@ const BloodRequests = () => {
             <TabsTrigger value="my-requests">My Requests</TabsTrigger>
           )}
         </TabsList>
-        
+
         <TabsContent value="all" className="mt-4">
           {filteredRequests.length > 0 ? (
             <div className="grid md:grid-cols-2 gap-4">
@@ -306,7 +294,7 @@ const BloodRequests = () => {
             </div>
           )}
         </TabsContent>
-        
+
         {isAuthenticated && userType !== 'donor' && (
           <TabsContent value="my-requests" className="mt-4">
             {userRequests.length > 0 ? (
