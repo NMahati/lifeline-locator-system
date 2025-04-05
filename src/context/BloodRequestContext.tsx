@@ -86,6 +86,6 @@ export const useBloodRequests = () => {
   return context;
 };
 
-// Change to export type to fix TypeScript error with isolatedModules
+// Fix TypeScript error by using 'export type' when re-exporting a type
 export { BloodTypes } from './AuthContext';
 export type { BloodRequest } from '../types/bloodRequest';
