@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const BloodRequest = require('../models/BloodRequest');
@@ -17,11 +16,27 @@ router.get('/', async (req, res) => {
 // Create new blood request
 router.post('/', async (req, res) => {
   try {
-    const request = new BloodRequest(req.body);
-    await request.save();
-    res.status(201).json({ success: true, request });
+    const { bloodGroup, quantity, donor, location, urgency } = req.body;
+
+    // Validate required fields
+    if (!bloodGroup || !quantity || !donor || !location || !urgency) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    // Create a new blood request
+    const newRequest = new BloodRequest({
+      bloodGroup,
+      quantity,
+      donor,
+      location,
+      urgency,
+    });
+
+    const savedRequest = await newRequest.save();
+    res.status(201).json(savedRequest);
   } catch (error) {
-    res.status(400).json({ success: false, error: error.message });
+    console.error('Error creating blood request:', error);
+    res.status(500).json({ message: 'Failed to create blood request' });
   }
 });
 

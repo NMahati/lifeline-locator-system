@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import BloodGroupSelector from '@/components/BloodGroupSelector';
 import { BloodTypes } from '@/context/AuthContext';
 import { Search, Plus, CircleX } from 'lucide-react';
+import api from '../services/api'; // Assuming api is imported from a relevant module
 
 const BloodRequests = () => {
   const { requests, userRequests, createRequest, respondToRequest } = useBloodRequests();
@@ -51,18 +52,28 @@ const BloodRequests = () => {
     return searchMatch && bloodGroupMatch && urgencyMatch;
   });
 
-  const handleCreateRequest = () => {
-    if (!user) return;
-    createRequest({
-      ...newRequest,
-      requesterInfo: {
-        id: donor.id || donor._id,
-        name: user.name,
-        type: userType
-      }
-    });
-    setIsDialogOpen(false);
-    setNewRequest(initialRequest);
+  const handleCreateRequest = async () => {
+    const requestData = {
+      bloodGroup: newRequest.bloodGroup,
+      quantity: newRequest.quantity,
+      donor: user?.id,
+      location: {
+        address: newRequest.location.address,
+      },
+      urgency: newRequest.urgency,
+      contactPhone: newRequest.contactPhone,
+      contactEmail: newRequest.contactEmail,
+      additionalNotes: newRequest.additionalNotes,
+    };
+
+    try {
+      const response = await api.createBloodRequest(requestData);
+      console.log('Blood request created successfully:', response);
+      setIsDialogOpen(false);
+      setNewRequest(initialRequest);
+    } catch (error: any) {
+      console.error('Failed to create blood request:', error.message);
+    }
   };
 
   const canCreateRequest = userType === 'recipient' || userType === 'hospital';

@@ -63,9 +63,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestData),
     });
+
     if (!response.ok) {
-      throw new Error('Failed to create blood request');
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to create blood request');
     }
+
     return await response.json();
   },
 };
