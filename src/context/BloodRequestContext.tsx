@@ -244,11 +244,11 @@ export const BloodRequestProvider: React.FC<{ children: ReactNode }> = ({ childr
             return request;
           }
           
-          // Add donor response
+          // Add donor response with the correct type for status
           const updatedResponses = [...(request.responses || []), {
             donorId: user.id,
             donorName: user.name,
-            status: 'offered',
+            status: 'offered' as 'offered' | 'accepted' | 'rejected' | 'completed',
             responseDate: new Date()
           }];
           
@@ -260,7 +260,7 @@ export const BloodRequestProvider: React.FC<{ children: ReactNode }> = ({ childr
           return {
             ...request,
             responses: updatedResponses,
-            status: 'in-progress'
+            status: 'in-progress' as const
           };
         }
         return request;
