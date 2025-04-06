@@ -15,6 +15,7 @@ import BloodRequests from "./pages/BloodRequests";
 import BloodBanks from "./pages/BloodBanks";
 import Eligibility from "./pages/Eligibility";
 import MyDonations from "./pages/MyDonations";
+import AppointmentSchedule from "./pages/AppointmentSchedule";
 
 // Context providers
 import { AuthProvider } from "./context/AuthContext";
@@ -41,6 +42,7 @@ const App = () => (
                 <Route path="/blood-banks" element={<BloodBanks />} />
                 <Route path="/eligibility" element={<Eligibility />} />
                 <Route path="/my-donations" element={<MyDonations />} />
+                <Route path="/appointment-schedule" element={<AppointmentSchedule />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, MapPin, Phone, Mail, AlertCircle } from "lucide-react";
 import { BloodRequest } from "@/context/BloodRequestContext";
 import { formatDistanceToNow } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 interface BloodDonationCardProps {
   request: BloodRequest;
@@ -12,12 +13,23 @@ interface BloodDonationCardProps {
 }
 
 const BloodDonationCard: React.FC<BloodDonationCardProps> = ({ request, onRespond }) => {
+  const navigate = useNavigate();
+  
   const getUrgencyColor = (urgency: BloodRequest['urgency']) => {
     switch (urgency) {
       case 'critical': return 'bg-red-600';
       case 'urgent': return 'bg-amber-500';
       case 'normal': return 'bg-green-500';
       default: return 'bg-green-500';
+    }
+  };
+  
+  const handleRespond = () => {
+    if (onRespond) {
+      // Navigate to appointment scheduling page
+      navigate('/appointment-schedule', { 
+        state: { requestId: request.id }
+      });
     }
   };
 
@@ -78,7 +90,7 @@ const BloodDonationCard: React.FC<BloodDonationCardProps> = ({ request, onRespon
         </div>
         {onRespond && (
           <Button 
-            onClick={onRespond}
+            onClick={handleRespond}
             className="bg-blood-500 hover:bg-blood-600"
           >
             Respond

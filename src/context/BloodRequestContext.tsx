@@ -86,6 +86,6 @@ export const useBloodRequests = () => {
   return context;
 };
 
-// Fix TypeScript error by using 'export type' when re-exporting a type
+// Fix TypeScript error by using 'export type' for re-exporting a type
 export { BloodTypes } from './AuthContext';
 export type { BloodRequest } from '../types/bloodRequest';
