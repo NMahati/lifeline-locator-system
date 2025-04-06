@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { BloodTypes, useAuth } from './AuthContext';
+import { useAuth } from './AuthContext';
 import { bloodRequestService } from '../services/api';
 import { BloodRequest, BloodRequestContextType } from '../types/bloodRequest';
 import { formatRequestFromApi } from '../utils/bloodRequestUtils';
@@ -86,6 +86,6 @@ export const useBloodRequests = () => {
   return context;
 };
 
-// Fix TypeScript error by using 'export type' for re-exporting a type
-export { BloodTypes } from './AuthContext';
+// Fix: Use 'export type' for re-exporting types
+export type { BloodTypes } from './AuthContext';
 export type { BloodRequest } from '../types/bloodRequest';
